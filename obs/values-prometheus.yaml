@@ -1,0 +1,59 @@
+server:
+  persistentVolume:
+    enabled: false
+  retention: 2h
+  resources:
+    requests:
+      cpu: 200m
+      memory: 400Mi
+    limits:
+      memory: 900Mi
+alertmanager:
+  enabled: true
+  persistence:
+    enabled: false
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      memory: 200Mi
+prometheus-pushgateway:
+  enabled: false
+kube-state-metrics:
+  enabled: true
+prometheus-node-exporter:
+  enabled: true
+serverFiles:
+  alerting_rules.yml:
+    groups:
+    - name: agent
+      rules:
+      - alert: AgentDown
+        expr: up{app="agent"} == 0 or absent(up{app="agent"})
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "The support agent is not answering scrapes"
+      - alert: AgentHighErrorRate
+        expr: sum(rate(agent_requests_total{status=~"5.."}[5m])) / sum(rate(agent_requests_total[5m])) > 0.08
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Agent error rate above 8 percent"
+      - alert: AgentSlowWork
+        expr: histogram_quantile(0.95, sum by (le) (rate(agent_request_duration_seconds_bucket{endpoint="/work"}[5m]))) > 0.8
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Work p95 above 800ms"
+      - alert: CardinalityHigh
+        expr: prometheus_tsdb_head_series > 50000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Prometheus head series above 50000"
