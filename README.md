@@ -7,6 +7,39 @@ Nothing is done by clicking.
 Built as the Week 5 convergence piece of a 25 day Docker, Kubernetes and observability
 phase. Owner: Ayobami (LGND, legendonthisone).
 
+Read [CASE-STUDY.md](CASE-STUDY.md) for the measured results, the managed versus self hosted comparison, and what the rebuild from scratch pass found.
+
+## Architecture
+
+```mermaid
+flowchart LR
+  subgraph host["Windows laptop, Docker Desktop, 4.803 GiB"]
+    subgraph kind["kind cluster, 2 nodes"]
+      subgraph def["namespace: default"]
+        LG["loadgen x2<br/>busybox 1.36"]
+        AG["agent<br/>Flask, Bedrock, non-root<br/>/metrics on :5000"]
+      end
+      subgraph mon["namespace: monitoring"]
+        PR["Prometheus<br/>retention 2h, no volume"]
+        AM["Alertmanager<br/>4 rules"]
+        GR["Grafana<br/>dashboard provisioned from JSON"]
+      end
+    end
+  end
+  BR["Browser on the host"]
+  LG -->|"GET /work and /health"| AG
+  PR -->|"scrapes, found by prometheus.io annotations"| AG
+  PR -->|"fires"| AM
+  GR -->|"PromQL"| PR
+  BR -->|"port-forward 3000"| GR
+  BR -->|"port-forward 9090"| PR
+```
+
+Two things the arrows are saying deliberately. Prometheus points AT the agent because it
+initiates the connection: this is a pull system, and a target it cannot reach is a target it
+cannot see. And nothing points into the cluster from outside except port-forward, which is why
+the demo credentials in this repo are acceptable here and nowhere else.
+
 ## What you get
 
 - A two node local Kubernetes cluster (kind), no cloud spend
@@ -330,6 +363,8 @@ The datasource in the same values file survived every deletion, because it was w
 
 Same cluster, same chart, same values file, two different outcomes, decided entirely by
 whether the thing existed as a file. That is why this repo exists.
+
+
 
 
 
